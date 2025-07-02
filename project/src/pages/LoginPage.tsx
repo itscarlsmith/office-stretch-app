@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -30,42 +29,6 @@ const LoginPage: React.FC = () => {
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Direct Supabase test function
-  const testDirectSupabase = async () => {
-    console.log('🧪 Testing direct Supabase call...');
-    
-    try {
-      // Create direct client
-      const testClient = createClient(
-        'https://czkeaamatbtmzzvgrbas.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6a2VhYW1hdGJ0bXp6dmdyYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MTMzMjMsImV4cCI6MjA2NTk4OTMyM30.NyC1TRFLN2SD8oiOBBHblAdmDgzZBojgBnusvOiQVAM'
-      );
-
-      console.log('🔍 Calling signInWithPassword...');
-      
-      const result = await testClient.auth.signInWithPassword({
-        email: email || 'sovis.karel@seznam.cz',
-        password: password || 'your-password'
-      });
-
-      console.log('✅ Direct test result:', result);
-      
-      if (result.data.user) {
-        alert('Direct Supabase test SUCCESS! User: ' + result.data.user.email);
-        console.log('👤 User data:', result.data.user);
-        
-        // Try to navigate directly
-        navigate('/dashboard');
-      } else if (result.error) {
-        alert('Direct test ERROR: ' + result.error.message);
-        console.error('❌ Error:', result.error);
-      }
-    } catch (error) {
-      console.error('💥 Direct test failed:', error);
-      alert('Direct test FAILED: ' + error);
     }
   };
 
@@ -150,20 +113,6 @@ const LoginPage: React.FC = () => {
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
-
-          {/* TEST BUTTON - Remove this after testing */}
-          <div className="mt-4 pt-4 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={testDirectSupabase}
-              className="w-full bg-red-500 text-white py-3 rounded-xl font-semibold hover:bg-red-600 transition-colors"
-            >
-              🧪 TEST: Direct Supabase Call
-            </button>
-            <p className="text-xs text-slate-500 mt-2 text-center">
-              This bypasses AuthContext - for debugging only
-            </p>
-          </div>
 
           <div className="mt-6 text-center">
             <p className="text-slate-600">
