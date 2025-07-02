@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase with direct values
+// Initialize Supabase - single instance only
 const supabaseUrl = 'https://czkeaamatbtmzzvgrbas.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6a2VhYW1hdGJ0bXp6dmdyYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MTMzMjMsImV4cCI6MjA2NTk4OTMyM30.NyC1TRFLN2SD8oiOBBHblAdmDgzZBojgBnusvOiQVAM';
 
@@ -11,8 +11,6 @@ interface User {
   id: string;
   email: string;
   name: string;
-  subscription_plan?: string;
-  subscription_status?: string;
 }
 
 interface AuthContextType {
@@ -39,117 +37,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+    // Simple session check on startup
+    const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          await setUserFromAuth(session.user);
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.email?.split('@')[0] || 'User'
+          });
         }
       } catch (error) {
-        console.error('Error getting session:', error);
+        console.error('Session check error:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          await setUserFromAuth(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    checkSession();
   }, []);
-
-  const setUserFromAuth = async (authUser: any) => {
-    try {
-      // Get or create user profile
-      let { data: profile, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      if (error && error.code === 'PGRST116') {
-        // User profile doesn't exist, create it
-        const newProfile = {
-          id: authUser.id,
-          email: authUser.email,
-          name: authUser.email?.split('@')[0] || 'User',
-          subscription_plan: 'free',
-          subscription_status: 'active'
-        };
-
-        const { data: createdProfile, error: createError } = await supabase
-          .from('user_profiles')
-          .insert([newProfile])
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating profile:', createError);
-          profile = newProfile; // Use the data we tried to insert
-        } else {
-          profile = createdProfile;
-        }
-      }
-
-      if (profile) {
-        setUser({
-          id: profile.id,
-          email: profile.email,
-          name: profile.name,
-          subscription_plan: profile.subscription_plan,
-          subscription_status: profile.subscription_status
-        });
-      }
-    } catch (error) {
-      console.error('Error setting user from auth:', error);
-      // Fallback to basic user data
-      setUser({
-        id: authUser.id,
-        email: authUser.email || '',
-        name: authUser.email?.split('@')[0] || 'User'
-      });
-    }
-  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('🔍 Starting login process...');
-      console.log('📧 Email:', email);
+      console.log('🔍 Simple login starting...');
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      console.log('📋 Supabase response:', { data, error });
+      console.log('📋 Login result:', { data, error });
 
       if (error) {
         console.error('❌ Login error:', error.message);
-        alert('Login failed: ' + error.message);
         return false;
       }
 
       if (data.user) {
-        console.log('✅ Login successful! User:', data.user);
-        // Don't manually set user here - let the auth state change handler do it
+        console.log('✅ Setting user:', data.user);
+        
+        // Set user immediately
+        setUser({
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.email?.split('@')[0] || 'User'
+        });
+        
         return true;
       }
 
       return false;
     } catch (error) {
-      console.error('💥 Unexpected error:', error);
-      alert('Unexpected error: ' + error);
+      console.error('💥 Login error:', error);
       return false;
     }
   };
@@ -160,9 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
         options: {
-          data: {
-            name: name
-          }
+          data: { name }
         }
       });
 
@@ -171,7 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // Note: User will be set when the auth state change event fires
       return !!data.user;
     } catch (error) {
       console.error('Signup error:', error);
@@ -181,16 +118,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPassword = async (email: string): Promise<boolean> => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
-      });
-
-      if (error) {
-        console.error('Reset password error:', error.message);
-        return false;
-      }
-
-      return true;
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      return !error;
     } catch (error) {
       console.error('Reset password error:', error);
       return false;
@@ -203,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
-      setUser(null); // Clear user even if logout fails
+      setUser(null);
     }
   };
 
