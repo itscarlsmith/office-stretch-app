@@ -2,8 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase
-const supabaseUrl = 'https://czkeaamatbtmzzvgrbas.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6a2VhYW1hdGJ0bXp6dmdyYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MTMzMjMsImV4cCI6MjA2NTk4OTMyM30.NyC1TRFLN2SD8oiOBBHblAdmDgzZBojgBnusvOiQVAM';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
