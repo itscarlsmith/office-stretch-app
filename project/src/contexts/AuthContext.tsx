@@ -130,29 +130,34 @@ const login = async (email: string, password: string): Promise<boolean> => {
   try {
     console.log('🔍 Starting login process...');
     console.log('📧 Email:', email);
+    console.log('🔗 Supabase URL:', supabaseUrl);
+    console.log('🔑 Supabase Key exists:', !!supabaseKey);
+    console.log('📡 About to call Supabase...');
     
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
 
-    console.log('📋 Supabase response:', { data, error });
+    console.log('📋 Supabase response received!');
+    console.log('📋 Data:', data);
+    console.log('📋 Error:', error);
 
     if (error) {
       console.error('❌ Login error:', error.message);
-      alert('Login failed: ' + error.message); // Temporary alert
+      alert('Login failed: ' + error.message);
       return false;
     }
 
     if (data.user) {
       console.log('✅ Login successful! User:', data.user);
-      alert('Login successful!'); // Temporary alert
+      alert('Login successful!');
     }
 
     return !!data.user;
   } catch (error) {
     console.error('💥 Unexpected error:', error);
-    alert('Unexpected error: ' + error); // Temporary alert
+    alert('Unexpected error: ' + error);
     return false;
   }
 };
