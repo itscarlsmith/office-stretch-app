@@ -1,13 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// Initialize Supabase with direct values
+const supabaseUrl = 'https://czkeaamatbtmzzvgrbas.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6a2VhYW1hdGJ0bXp6dmdyYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MTMzMjMsImV4cCI6MjA2NTk4OTMyM30.NyC1TRFLN2SD8oiOBBHblAdmDgzZBojgBnusvOiQVAM';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -127,36 +123,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
-  try {
-    console.log('🔍 Starting login process...');
-    console.log('📧 Email:', email);
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    try {
+      console.log('🔍 Starting login process...');
+      console.log('📧 Email:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    console.log('📋 Supabase response:', { data, error });
+      console.log('📋 Supabase response:', { data, error });
 
-    if (error) {
-      console.error('❌ Login error:', error.message);
-      alert('Login failed: ' + error.message);
+      if (error) {
+        console.error('❌ Login error:', error.message);
+        alert('Login failed: ' + error.message);
+        return false;
+      }
+
+      if (data.user) {
+        console.log('✅ Login successful! User:', data.user);
+        // Don't manually set user here - let the auth state change handler do it
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('💥 Unexpected error:', error);
+      alert('Unexpected error: ' + error);
       return false;
     }
-
-    if (data.user) {
-      console.log('✅ Login successful! User:', data.user);
-      // Don't manually set user here - let the auth state change handler do it
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('💥 Unexpected error:', error);
-    alert('Unexpected error: ' + error);
-    return false;
-  }
-};
+  };
 
   const signup = async (email: string, password: string, name: string): Promise<boolean> => {
     try {
