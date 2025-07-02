@@ -11,30 +11,6 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Test function for direct Supabase login
-const testDirectLogin = async (email: string, password: string) => {
-  console.log('🧪 Testing direct Supabase login...');
-  
-  try {
-    // Create a fresh Supabase client for testing
-    const testClient = createClient(
-      'https://czkeaamatbtmzzvgrbas.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6a2VhYW1hdGJ0bXp6dmdyYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0MTMzMjMsImV4cCI6MjA2NTk4OTMyM30.NyC1TRFLN2SD8oiOBBHblAdmDgzZBojgBnusvOiQVAM'
-    );
-    
-    const result = await testClient.auth.signInWithPassword({
-      email: email,
-      password: password
-    });
-    
-    console.log('🧪 Direct login result:', result);
-    return result;
-  } catch (error) {
-    console.error('🧪 Direct login error:', error);
-    return null;
-  }
-};
-
 interface User {
   id: string;
   email: string;
@@ -151,24 +127,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      console.log('🔍 Starting login process...');
-      
-      // Test with direct client first
-      const testResult = await testDirectLogin(email, password);
-      if (testResult?.data?.user) {
-        console.log('✅ Direct login worked!', testResult.data.user);
-        alert('Direct login successful!');
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('💥 Login error:', error);
-      alert('Login error: ' + error);
+  try {
+    console.log('🔍 Starting login process...');
+    console.log('📧 Email:', email);
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    console.log('📋 Supabase response:', { data, error });
+
+    if (error) {
+      console.error('❌ Login error:', error.message);
+      alert('Login failed: ' + error.message);
       return false;
     }
-  };
+
+    if (data.user) {
+      console.log('✅ Login successful! User:', data.user);
+      // Don't manually set user here - let the auth state change handler do it
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('💥 Unexpected error:', error);
+    alert('Unexpected error: ' + error);
+    return false;
+  }
+};
 
   const signup = async (email: string, password: string, name: string): Promise<boolean> => {
     try {
