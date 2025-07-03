@@ -1,176 +1,341 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Check, ArrowLeft, Zap } from 'lucide-react';
+import { Heart, Check, Crown, Zap, Star, Calendar } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const PricingPage: React.FC = () => {
+  const { user } = useAuth();
+  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+
+  const plans = [
+    {
+      id: 'free',
+      name: 'Free Trial',
+      description: 'Perfect for trying out Office Stretch',
+      price: 0,
+      priceAnnual: 0,
+      daysPerWeek: 2,
+      features: [
+        '2 days per week usage',
+        'Basic exercise library',
+        'Simple timer functionality',
+        'Email support'
+      ],
+      buttonText: 'Current Plan',
+      popular: false,
+      color: 'gray'
+    },
+    {
+      id: '3day',
+      name: 'Essential',
+      description: 'Great for light office workers',
+      price: 3,
+      priceAnnual: 30, // $2.50/month when billed annually
+      daysPerWeek: 3,
+      features: [
+        '3 days per week usage',
+        'Full exercise library',
+        'Advanced timer features',
+        'Custom schedules',
+        'Priority email support'
+      ],
+      buttonText: 'Choose Essential',
+      popular: false,
+      color: 'blue'
+    },
+    {
+      id: '5day',
+      name: 'Professional',
+      description: 'Perfect for full-time office workers',
+      price: 5,
+      priceAnnual: 50, // $4.17/month when billed annually
+      daysPerWeek: 5,
+      features: [
+        '5 days per week usage',
+        'Full exercise library',
+        'Advanced timer features',
+        'Custom schedules',
+        'Browser notifications',
+        'Priority email support'
+      ],
+      buttonText: 'Choose Professional',
+      popular: true,
+      color: 'green'
+    },
+    {
+      id: '7day',
+      name: 'Premium',
+      description: 'For the ultimate wellness experience',
+      price: 7,
+      priceAnnual: 70, // $5.83/month when billed annually
+      daysPerWeek: 7,
+      features: [
+        'Unlimited daily usage',
+        'Full exercise library',
+        'Advanced timer features',
+        'Custom schedules',
+        'Browser notifications',
+        'Priority chat support',
+        'Wellness analytics'
+      ],
+      buttonText: 'Choose Premium',
+      popular: false,
+      color: 'purple'
+    }
+  ];
+
+  const handlePlanSelect = async (planId: string) => {
+    if (!user) {
+      // Redirect to login
+      window.location.href = '/login';
+      return;
+    }
+
+    if (planId === 'free') {
+      return; // Already on free plan
+    }
+
+    setSelectedPlan(planId);
+    
+    // Create Stripe checkout session
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planId,
+          isAnnual,
+          userId: user.id,
+          userEmail: user.email
+        }),
+      });
+
+      const { sessionId } = await response.json();
+      
+      // Redirect to Stripe Checkout
+      // We'll implement this with Stripe.js
+      console.log('Redirecting to Stripe with session:', sessionId);
+      
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      alert('Error processing payment. Please try again.');
+    } finally {
+      setSelectedPlan(null);
+    }
+  };
+
+  const getColorClasses = (color: string, popular: boolean = false) => {
+    const colors = {
+      gray: {
+        border: 'border-gray-200',
+        button: 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+        accent: 'text-gray-600'
+      },
+      blue: {
+        border: 'border-blue-200',
+        button: 'bg-blue-600 text-white hover:bg-blue-700',
+        accent: 'text-blue-600'
+      },
+      green: {
+        border: popular ? 'border-green-400 ring-2 ring-green-200' : 'border-green-200',
+        button: 'bg-green-600 text-white hover:bg-green-700',
+        accent: 'text-green-600'
+      },
+      purple: {
+        border: 'border-purple-200',
+        button: 'bg-purple-600 text-white hover:bg-purple-700',
+        accent: 'text-purple-600'
+      }
+    };
+    return colors[color as keyof typeof colors] || colors.gray;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">
       {/* Header */}
-      <header className="bg-white/95 backdrop-blur-md shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-teal-500 rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-slate-800">Office Stretch</span>
-            </Link>
-            
-            <div className="flex items-center gap-4">
-              <Link to="/" className="text-slate-600 hover:text-blue-600 transition-colors">
-                Back to Home
-              </Link>
-              <Link to="/login" className="text-slate-600 hover:text-blue-600 transition-colors">
-                Login
-              </Link>
+      <header className="bg-white/80 backdrop-blur-xl border-b border-black/5">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-teal-500 rounded-xl flex items-center justify-center">
+              <Heart className="w-5 h-5 text-white" />
             </div>
+            <span className="text-xl font-bold text-slate-800">Office Stretch</span>
+          </Link>
+          
+          <div className="flex items-center gap-4">
+            {user ? (
+              <Link
+                to="/dashboard"
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="text-slate-600 hover:text-slate-800">
+                  Log In
+                </Link>
+                <Link
+                  to="/signup"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      <div className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="text-center mb-16">
-            <h1 className="text-5xl font-bold text-slate-900 mb-6">
-              Simple, Affordable Pricing
-            </h1>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
-              Get started for less than the cost of a single physical therapy session. 
-              No hidden fees, no long-term commitments.
-            </p>
-            
-            {/* Annual Discount Banner */}
-            <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
-              <span>💰</span>
-              Save 20% with annual billing
-            </div>
+      <div className="max-w-6xl mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+            Choose Your Wellness Plan
+          </h1>
+          <p className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto">
+            Stay healthy and productive with our flexible subscription plans designed for every work style
+          </p>
+
+          {/* Annual/Monthly Toggle */}
+          <div className="inline-flex items-center gap-4 bg-white rounded-2xl p-2 shadow-sm border border-slate-200">
+            <button
+              onClick={() => setIsAnnual(false)}
+              className={`px-6 py-2 rounded-xl font-medium transition-all ${
+                !isAnnual
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setIsAnnual(true)}
+              className={`px-6 py-2 rounded-xl font-medium transition-all flex items-center gap-2 ${
+                isAnnual
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              Annual
+              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
+                Save 17%
+              </span>
+            </button>
           </div>
+        </div>
 
-          {/* Single Pricing Card */}
-          <div className="max-w-md mx-auto">
-            <div className="relative bg-white rounded-3xl p-8 shadow-xl border-2 border-blue-500 scale-105">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                <div className="bg-gradient-to-r from-blue-500 to-teal-500 text-white px-6 py-2 rounded-full text-sm font-semibold">
-                  Most Popular
-                </div>
-              </div>
+        {/* Pricing Cards */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {plans.map((plan) => {
+            const colors = getColorClasses(plan.color, plan.popular);
+            const currentPrice = isAnnual ? plan.priceAnnual : plan.price;
+            const monthlyPrice = isAnnual ? (plan.priceAnnual / 12).toFixed(2) : plan.price;
 
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center bg-gradient-to-br from-blue-500 to-teal-500">
-                  <Zap className="w-8 h-8 text-white" />
-                </div>
-                
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">Office Stretch</h3>
-                <p className="text-slate-600 mb-4">Everything you need to feel better</p>
-                
-                <div className="mb-6">
-                  <span className="text-5xl font-bold text-slate-900">$9</span>
-                  <span className="text-slate-600">/month</span>
-                  <div className="text-sm text-slate-500 mt-1">
-                    $86/year (save 20%)
+            return (
+              <div
+                key={plan.id}
+                className={`relative bg-white rounded-3xl p-8 shadow-xl border-2 ${colors.border} hover:shadow-2xl transition-all duration-300`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-1">
+                      <Star className="w-4 h-4" />
+                      Most Popular
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-center mb-8">
+                  <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${
+                    plan.color === 'gray' ? 'from-gray-400 to-gray-500' :
+                    plan.color === 'blue' ? 'from-blue-500 to-blue-600' :
+                    plan.color === 'green' ? 'from-green-500 to-green-600' :
+                    'from-purple-500 to-purple-600'
+                  } flex items-center justify-center`}>
+                    {plan.id === 'free' && <Zap className="w-8 h-8 text-white" />}
+                    {plan.id === '3day' && <Calendar className="w-8 h-8 text-white" />}
+                    {plan.id === '5day' && <Crown className="w-8 h-8 text-white" />}
+                    {plan.id === '7day' && <Star className="w-8 h-8 text-white" />}
+                  </div>
+
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
+                  <p className="text-slate-600 mb-6">{plan.description}</p>
+
+                  <div className="mb-6">
+                    {plan.id === 'free' ? (
+                      <div className="text-4xl font-bold text-slate-900">Free</div>
+                    ) : (
+                      <>
+                        <div className="text-4xl font-bold text-slate-900">
+                          ${monthlyPrice}
+                          <span className="text-lg font-normal text-slate-600">/month</span>
+                        </div>
+                        {isAnnual && (
+                          <div className="text-sm text-green-600 mt-1">
+                            Billed annually (${currentPrice}/year)
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                    plan.daysPerWeek === 7 ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {plan.daysPerWeek === 7 ? 'Unlimited' : `${plan.daysPerWeek} days/week`}
                   </div>
                 </div>
+
+                <ul className="space-y-4 mb-8">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <Check className={`w-5 h-5 ${colors.accent} flex-shrink-0 mt-0.5`} />
+                      <span className="text-slate-700">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handlePlanSelect(plan.id)}
+                  disabled={selectedPlan === plan.id || (plan.id === 'free' && user)}
+                  className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${colors.button} ${
+                    selectedPlan === plan.id ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'
+                  }`}
+                >
+                  {selectedPlan === plan.id ? 'Processing...' : plan.buttonText}
+                </button>
               </div>
+            );
+          })}
+        </div>
 
-              <ul className="space-y-4 mb-8">
-                {[
-                  "Unlimited personalized reminders",
-                  "50+ targeted stretches",
-                  "Progress tracking",
-                  "Works on any device",
-                  "Cancel anytime"
-                ].map((feature, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="w-3 h-3 text-green-600" />
-                    </div>
-                    <span className="text-slate-700">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                to="/signup"
-                className="block w-full py-4 rounded-2xl font-semibold text-center transition-all duration-200 hover:scale-105 bg-gradient-to-r from-blue-500 to-teal-500 text-white hover:shadow-xl"
-              >
-                Start Free Trial
-              </Link>
+        {/* FAQ Section */}
+        <div className="mt-24 text-center">
+          <h2 className="text-3xl font-bold text-slate-900 mb-8">Frequently Asked Questions</h2>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+              <h3 className="font-semibold text-slate-900 mb-3">Can I change plans anytime?</h3>
+              <p className="text-slate-600">Yes! You can upgrade, downgrade, or cancel your subscription at any time from your dashboard.</p>
             </div>
-          </div>
-
-          {/* Value Proposition */}
-          <div className="mt-16 text-center">
-            <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-200">
-              <h3 className="text-2xl font-bold text-slate-900 mb-4">Why This is a Great Deal</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="text-3xl font-bold text-red-500 mb-2">$150+</div>
-                  <p className="text-slate-600">Single physical therapy session</p>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-red-500 mb-2">$50+</div>
-                  <p className="text-slate-600">Monthly gym membership</p>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-green-500 mb-2">$9</div>
-                  <p className="text-slate-600">Office Stretch (monthly)</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* FAQ Section */}
-          <div className="mt-20">
-            <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">
-              Frequently Asked Questions
-            </h2>
             
-            <div className="space-y-6">
-              {[
-                {
-                  question: "Is there a free trial?",
-                  answer: "Yes! You get a 14-day free trial with full access to all features. No credit card required to get started."
-                },
-                {
-                  question: "Can I cancel anytime?",
-                  answer: "Absolutely. You can cancel your subscription at any time with just one click. No questions asked."
-                },
-                {
-                  question: "What devices does it work on?",
-                  answer: "Office Stretch works on any device with a web browser - desktop, laptop, tablet, or phone."
-                },
-                {
-                  question: "Do you offer refunds?",
-                  answer: "We offer a 30-day money-back guarantee. If you're not satisfied, we'll refund your payment in full."
-                },
-                {
-                  question: "How is this different from YouTube videos?",
-                  answer: "We provide personalized reminders, track your progress, and offer stretches specifically designed for office workers. It's like having a personal stretching coach."
-                }
-              ].map((faq, index) => (
-                <div key={index} className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-3">{faq.question}</h3>
-                  <p className="text-slate-600">{faq.answer}</p>
-                </div>
-              ))}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+              <h3 className="font-semibold text-slate-900 mb-3">What happens when I hit my weekly limit?</h3>
+              <p className="text-slate-600">The app will prompt you to upgrade your plan. Your usage resets every Monday at midnight UTC.</p>
             </div>
-          </div>
-
-          {/* CTA Section */}
-          <div className="text-center mt-20">
-            <div className="bg-gradient-to-r from-blue-500 to-teal-500 rounded-3xl p-12 text-white">
-              <h2 className="text-3xl font-bold mb-4">Ready to feel better?</h2>
-              <p className="text-xl text-blue-100 mb-8">
-                Join thousands of people who've eliminated their desk pain
-              </p>
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 bg-white text-blue-600 px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-              >
-                Start Your Free Trial
-              </Link>
-              <p className="text-blue-200 mt-4 text-sm">No credit card required • Cancel anytime</p>
+            
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+              <h3 className="font-semibold text-slate-900 mb-3">Do you offer refunds?</h3>
+              <p className="text-slate-600">Yes, we offer a 30-day money-back guarantee for all paid plans, no questions asked.</p>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+              <h3 className="font-semibold text-slate-900 mb-3">Is my payment information secure?</h3>
+              <p className="text-slate-600">Absolutely. We use Stripe for payment processing, which is bank-level secure and PCI DSS compliant.</p>
             </div>
           </div>
         </div>
