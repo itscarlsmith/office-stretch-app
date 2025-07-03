@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface TimerSettings {
   intervalMinutes: number;
@@ -17,6 +19,8 @@ const defaultSettings: TimerSettings = {
 };
 
 export function useTimer(onBreakTriggered: () => void) {
+  const { user } = useAuth(); // Get current user for usage tracking
+  
   const [settings, setSettings] = useState<TimerSettings>(() => {
     const saved = localStorage.getItem('wellness-timer-settings');
     return saved ? JSON.parse(saved) : defaultSettings;
@@ -29,12 +33,129 @@ export function useTimer(onBreakTriggered: () => void) {
   const [snoozeStartTime, setSnoozeStartTime] = useState<Date | null>(null);
   const [snoozeDuration, setSnoozeDuration] = useState(0);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [userPlan, setUserPlan] = useState<string>('free');
+  const [weeklyUsage, setWeeklyUsage] = useState<number>(0);
+  const [canUseToday, setCanUseToday] = useState<boolean>(true);
   
   // Store the paused time value to resume from
   const pausedTimeRef = useRef<number | null>(null);
   
   // Add flag to prevent double triggers
   const lastNotificationTimeRef = useRef<number>(0);
+
+  // Usage tracking functions
+  const trackDailyUsage = useCallback(async (action: 'timer_started' | 'break_now') => {
+    if (!user) return;
+
+    try {
+      console.log(`📊 Tracking daily usage: ${action} for user ${user.email}`);
+      
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD in UTC
+      
+      // Check if already used today
+      const { data: existingUsage } = await supabase
+        .from('daily_usage')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single();
+
+      if (!existingUsage) {
+        // First usage today - log it
+        const { error } = await supabase
+          .from('daily_usage')
+          .insert({
+            user_id: user.id,
+            date: today,
+            action: action
+          });
+
+        if (error) {
+          console.error('❌ Error tracking usage:', error);
+        } else {
+          console.log('✅ Daily usage tracked successfully');
+          // Refresh usage data
+          await checkUsageLimits();
+        }
+      } else {
+        console.log('ℹ️ Already used app today, not logging again');
+      }
+    } catch (error) {
+      console.error('❌ Error in trackDailyUsage:', error);
+    }
+  }, [user]);
+
+  const checkUsageLimits = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      console.log('🔍 Checking usage limits...');
+      
+      // Get user's subscription plan
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('subscription_plan')
+        .eq('id', user.id)
+        .single();
+
+      const currentPlan = profile?.subscription_plan || 'free';
+      setUserPlan(currentPlan);
+
+      // Get plan limits
+      const { data: planData } = await supabase
+        .from('subscription_plans')
+        .select('days_per_week')
+        .eq('id', currentPlan)
+        .single();
+
+      const daysAllowed = planData?.days_per_week || 2; // Default to 2 for free
+
+      // Get current week usage
+      const weekStart = getWeekStart();
+      const { data: usageData } = await supabase
+        .from('daily_usage')
+        .select('date')
+        .eq('user_id', user.id)
+        .gte('date', weekStart.toISOString().split('T')[0])
+        .lt('date', getWeekEnd().toISOString().split('T')[0]);
+
+      const daysUsed = new Set(usageData?.map(u => u.date) || []).size;
+      setWeeklyUsage(daysUsed);
+
+      // Check if already used today
+      const today = new Date().toISOString().split('T')[0];
+      const alreadyUsedToday = usageData?.some(u => u.date === today) || false;
+
+      // Can use if: already used today OR haven't hit weekly limit
+      const canUse = alreadyUsedToday || daysUsed < daysAllowed;
+      setCanUseToday(canUse);
+
+      console.log(`📊 Usage check: Plan=${currentPlan}, Used=${daysUsed}/${daysAllowed}, CanUse=${canUse}, UsedToday=${alreadyUsedToday}`);
+      
+    } catch (error) {
+      console.error('❌ Error checking usage limits:', error);
+    }
+  }, [user]);
+
+  // Helper functions for week calculation
+  const getWeekStart = () => {
+    const now = new Date();
+    const day = now.getUTCDay();
+    const diff = now.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday as week start
+    return new Date(now.setUTCDate(diff));
+  };
+
+  const getWeekEnd = () => {
+    const weekStart = getWeekStart();
+    return new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+  };
+
+  // Check usage limits when user changes or component mounts
+  useEffect(() => {
+    if (user) {
+      checkUsageLimits();
+    }
+  }, [user, checkUsageLimits]);
 
   // Enhanced notification permission management
   const requestNotificationPermission = useCallback(async () => {
@@ -237,8 +358,6 @@ export function useTimer(onBreakTriggered: () => void) {
       }
     }
     
-    // Removed BroadcastChannel to prevent cross-tab interference for now
-    
   }, [settings.notificationsEnabled, onBreakTriggered]);
 
   // Enhanced regular timer with better reliability
@@ -288,7 +407,13 @@ export function useTimer(onBreakTriggered: () => void) {
     setNextBreakTime(calculateNextBreakTime());
   }, [calculateNextBreakTime]);
 
-  const startTimer = () => {
+  const startTimer = async () => {
+    // Check usage limits before starting timer
+    if (!canUseToday) {
+      alert(`You've reached your weekly limit for the ${userPlan} plan. Upgrade to continue using the app!`);
+      return;
+    }
+
     let duration: number;
     
     // If we have a paused time, resume from there
@@ -297,9 +422,12 @@ export function useTimer(onBreakTriggered: () => void) {
       setTimeRemaining(pausedTimeRef.current);
       pausedTimeRef.current = null;
     } else {
-      // Starting fresh - use full interval time
+      // Starting fresh - use full interval time and track usage
       duration = settings.intervalMinutes * 60;
       setTimeRemaining(duration);
+      
+      // Track usage when starting a new timer session
+      await trackDailyUsage('timer_started');
     }
     
     setIsActive(true);
@@ -381,6 +509,22 @@ export function useTimer(onBreakTriggered: () => void) {
     console.log('✅ cancelSnooze: onBreakTriggered() called');
   };
 
+  // Modified manual break function with usage tracking
+  const triggerManualBreak = async () => {
+    // Check usage limits before allowing manual break
+    if (!canUseToday) {
+      alert(`You've reached your weekly limit for the ${userPlan} plan. Upgrade to continue using the app!`);
+      return false;
+    }
+
+    // Track usage for manual break
+    await trackDailyUsage('break_now');
+    
+    // Trigger the break
+    onBreakTriggered();
+    return true;
+  };
+
   const updateSettings = (newSettings: Partial<TimerSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
   };
@@ -413,14 +557,19 @@ export function useTimer(onBreakTriggered: () => void) {
     snoozeStartTime,
     snoozeDuration,
     notificationPermission,
+    userPlan,
+    weeklyUsage,
+    canUseToday,
     formatTime,
     startTimer,
     pauseTimer,
     resetTimer,
     snoozeTimer,
     cancelSnooze,
+    triggerManualBreak,
     updateSettings,
     getSnoozeProgress,
     requestNotificationPermission,
+    checkUsageLimits,
   };
 }
