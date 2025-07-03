@@ -100,7 +100,7 @@ const PricingPage: React.FC = () => {
     
     // Create Stripe checkout session
     try {
-      const response = await fetch('/api/create-checkout-session', {
+      const response = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,11 +113,27 @@ const PricingPage: React.FC = () => {
         }),
       });
 
-      const { sessionId } = await response.json();
+      const data = await response.json();
       
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
       // Redirect to Stripe Checkout
-      // We'll implement this with Stripe.js
-      console.log('Redirecting to Stripe with session:', sessionId);
+      const stripe = window.Stripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+      if (stripe) {
+        const { error } = await stripe.redirectToCheckout({
+          sessionId: data.sessionId
+        });
+        
+        if (error) {
+          console.error('Stripe redirect error:', error);
+          alert('Error redirecting to checkout. Please try again.');
+        }
+      } else {
+        console.error('Stripe not loaded');
+        alert('Payment system not loaded. Please refresh and try again.');
+      }
       
     } catch (error) {
       console.error('Error creating checkout session:', error);
@@ -155,6 +171,9 @@ const PricingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">
+      {/* Add Stripe.js script to head */}
+      <script src="https://js.stripe.com/v3/"></script>
+      
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
