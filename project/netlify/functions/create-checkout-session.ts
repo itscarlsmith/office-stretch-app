@@ -14,13 +14,13 @@ export const handler: Handler = async (event, context) => {
   try {
     const { planId, isAnnual, userId, userEmail } = JSON.parse(event.body || '{}');
 
-    // Your actual Price IDs from Stripe
-    const priceIds = {
-      '3day': isAnnual ? 'price_1RgqFKEfIIaED3yLd1QJ0lw0' : 'price_1RgqCiEfIIaED3yLtTxEj1cE',
-      '5day': isAnnual ? 'price_1RgqFKEfIIaED3yLd1QJ0lw0' : 'price_1RgqD9EfIIaED3yLhbdRESkJ',
-      '7day': isAnnual ? 'price_1RgqFKEfIIaED3yLd1QJ0lw0' : 'price_1RgqDbEfIIaED3yLjttObvu2',
-    };
-
+  // Your TEST Price IDs from Stripe
+const priceIds = {
+  '3day': isAnnual ? 'price_1RgptRI7OFlABPPHPIcaWHqO' : 'price_1RgptRI7OFlABPPHPIcaWHqO',
+  '5day': isAnnual ? 'price_1RgptRI7OFlABPPHPIcaWHqO' : 'price_1RgptRI7OFlABPPHPIcaWHqO',
+  '7day': isAnnual ? 'price_1RgptRI7OFlABPPHPIcaWHqO' : 'price_1RgptRI7OFlABPPHPIcaWHqO',
+};
+    
     const priceId = priceIds[planId as keyof typeof priceIds];
     
     if (!priceId) {
