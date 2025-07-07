@@ -41,7 +41,7 @@ const priceIds = {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.URL || 'http://localhost:3000'}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.URL || 'http://localhost:3000'}/dashboard?payment=success`,
       cancel_url: `${process.env.URL || 'http://localhost:3000'}/pricing`,
       metadata: {
         userId: userId,
