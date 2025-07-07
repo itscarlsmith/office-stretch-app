@@ -20,6 +20,16 @@ const DashboardPage: React.FC = () => {
   const [walkDuration, setWalkDuration] = useState(5);
   const [showBreakModal, setShowBreakModal] = useState(false);
 
+  // Check for payment success
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment') === 'success') {
+      // Show success message and clean URL
+      alert('Payment successful! Your subscription is now active.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Store reference to Dashboard's snooze function
   const dashboardSnoozeRef = React.useRef<((minutes: number) => void) | null>(null);
 
